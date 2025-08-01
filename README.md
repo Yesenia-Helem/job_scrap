@@ -14,4 +14,4 @@ Workflow Overview
 5. Save results in JSON.
 
    
-![Job Scraping Workflow](src/squema_scrap.pdf)
+![Job Scraping Workflow](src/flowchart.png)
