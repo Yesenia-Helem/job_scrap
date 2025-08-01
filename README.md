@@ -12,3 +12,6 @@ Workflow Overview
    - Job location
    - Full job description
 5. Save results in JSON.
+
+   
+![Job Scraping Workflow](src/squema_scrap.pdf)
