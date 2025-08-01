@@ -12,5 +12,3 @@ Workflow Overview
    - Job location
    - Full job description
 5. Save results in JSON.
-
- [squema_scrap.pdf](https://github.com/user-attachments/files/21554245/squema_scrap.pdf)
