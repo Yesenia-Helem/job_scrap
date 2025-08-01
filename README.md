@@ -13,3 +13,6 @@ Workflow Overview
    - Full job description
 5. Save results in JSON.
 
+
+   
+![Job Scraping Workflow](src/flowchart.png)
