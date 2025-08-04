@@ -17,7 +17,7 @@ Example:
 ## How to Run
 
 ```bash
-python3 agent.py "https://lcps.schoolspring.com/"
+python3 src/agent.py "https://lcps.schoolspring.com/"
 ```
 
 
