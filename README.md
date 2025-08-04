@@ -20,5 +20,8 @@ Example:
 ```bash
 python3 agent.py "https://lcps.schoolspring.com/"
 ```
-   
+
+
+Workflow
+
 ![Job Scraping Workflow](src/flowchart.png)
