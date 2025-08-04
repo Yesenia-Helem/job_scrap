@@ -214,7 +214,7 @@ def get_page_old_s(url: str):
                     writer = csv.DictWriter(f, fieldnames=fieldnames)
                     if write_header:
                         writer.writeheader()
-                        write_header = False  # Solo la primera vez
+                        write_header = False  
                     writer.writerow({
                         "title": title,
                         "salary": salary,
