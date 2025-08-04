@@ -13,6 +13,10 @@ Workflow Overview
    - Full job description
 5. Save results in JSON.
 
+Example:
 
+For run:
+
+python3 agent.py "https://lcps.schoolspring.com/"
    
 ![Job Scraping Workflow](src/flowchart.png)
