@@ -15,8 +15,10 @@ Workflow Overview
 
 Example:
 
-For run:
+## How to Run
 
+```bash
 python3 agent.py "https://lcps.schoolspring.com/"
+
    
 ![Job Scraping Workflow](src/flowchart.png)
