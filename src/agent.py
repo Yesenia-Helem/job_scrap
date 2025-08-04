@@ -1,6 +1,9 @@
+import asyncio
 import sys
 import json
-from tools import get_page_html, get_page
+from tools import get_page_html
+from tools import get_page 
+
 from llm_utils import get_llm_chain
 #from extract_jobs import prompt_template
 
@@ -58,43 +61,9 @@ def scrape_jobs_old(url: str):
     return jobs
 
 
-def scrape_jobs(url: str):
-    page, html = get_page(url)  
-    
-    print('after get page in scrape jobs')
-    
-    selectors = get_job_selectors(html)
-    if selectors is None:
-        print("Could not get selectors, aborting")
-        return []
-
-    job_list_selector = selectors["job_list_selector"]
-    title_selector = selectors["title_selector"]
-    location_selector = selectors["location_selector"]
-
-    job_cards = page.locator(job_list_selector)
-
-    count = job_cards.count()
-    print(f"Found {count} jobs, extracting details...")
-
-    jobs = []
-    for i in range(count):
-        job = job_cards.nth(i)
-        job.click()
-        page.wait_for_timeout(1500)  
-        detail_html = page.content()
-        
-        title = job.locator(title_selector).inner_text()
-        location = job.locator(location_selector).inner_text()
-
-        jobs.append({
-            "title": title,
-            "location": location,
-            "detail_html": detail_html 
-        })
-
-    #page.context.browser.close()
-    return jobs
+async def scrape_jobs(url: str):
+    page, html = await get_page(url)
+    return {"html": html}
 
 
 
@@ -104,5 +73,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     url = sys.argv[1]
-    jobs = scrape_jobs(url)
+
+    jobs = asyncio.run(scrape_jobs(url))
+
     print(json.dumps(jobs, indent=2, ensure_ascii=False))
