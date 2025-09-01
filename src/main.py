@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from scrap_wp import scrape_maximus_amazon_jobs
+from scrap_wp import scrape_maximus_amazon_jobs, scrape_inova_aecom_jobs
 
 if __name__ == "__main__":
     import json
@@ -33,6 +33,23 @@ if __name__ == "__main__":
 
     url = "https://careers.truist.com/us/en/search-results?keywords="
 
+    url = "https://georgetown.wd1.myworkdayjobs.com/Georgetown_Admin_Careers"
+
+    url = "https://aecom.jobs/locations/virginia/jobs/"
+    url = "https://aecom.jobs/locations/maryland/jobs/"
+    url = "https://aecom.jobs/locations/district-of-columbia/jobs/"
+    
+    url = "https://www.clarkconstruction.com/build-your-career/search-apply?page=1"
+
+    url = "https://howard.wd1.myworkdayjobs.com/HU" #scrape_maximus_amazon_jobs
+
+    url = "https://www.gwu.jobs/postings/search"
+
+    url = "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/jobs?location=Washington%2C+DC%2C+United+States&locationId=300000020705795&locationLevel=city&mode=location&radius=25&radiusUnit=MI"
+
+    url = "https://careers.underarmour.com/search/?searchby=location&createNewAlert=false&q=&locationsearch=Maryland&geolocation="
+
+
     #results = asyncio.run(scrape_amazon_jobs(url, max_jobs=3000))
     #results = asyncio.run(scrape_medstar_jobs(url, max_jobs=4000))
     #results = asyncio.run(scrape_mcdean_jobs(url, max_jobs=4000))
@@ -42,7 +59,10 @@ if __name__ == "__main__":
     #results = asyncio.run(scrape_northrop_grumman_jobs(url, max_jobs=3000))
     #results = asyncio.run(scrape_inova_jobs(url, max_jobs=3000))
     #results = asyncio.run(scrape_jhons_hopkins_jobs(url, max_jobs=3000))
-    results = asyncio.run(scrape_maximus_amazon_jobs(url, jobsite = "truist", max_jobs=3000))
+    
+    #results = asyncio.run(scrape_maximus_amazon_jobs(url, jobsite = "george_washington_niversity", max_jobs=4000))
+
+    results = asyncio.run(scrape_inova_aecom_jobs(url, jobsite = "underarmour", state=None, max_jobs=4000))
 
     
     print(json.dumps(results, indent=2))

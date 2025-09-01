@@ -7,7 +7,7 @@ from urllib.parse import urljoin
 import csv
 import json
 import re
-from norm_data import normalize_job_data, safe_parse_json
+from norm_data import normalize_job_data, safe_parse_json, parse_relative_date
 from llm_model import extract_description
 import pandas as pd
 from datetime import datetime
@@ -174,12 +174,8 @@ async def scrape_amazon_jobs(url: str, max_jobs=10):
                     if len(results) >= max_jobs:
                         break
                 except Exception as e:
-                    print("Init error ////////////////////////////////////////////////////")
-                    print("before normalizacion result")
-                    print(result)
-                    print('..........')
-                    print(job_data)
                     print("Error:", e)
+                    print(job_data)
                     print("End error ////////////////////////////////////////////////////")
                     continue
                     
@@ -760,15 +756,6 @@ async def scrape_northrop_grumman_jobs(url: str, max_jobs=10):
                     job_id = await job_id_el.inner_text() if job_id_el else None
                     print("Job ID:", job_id)                
 
-                    #job_description_el = await page.query_selector("div.position-job-description")
-                    #job_description = await job_description_el.inner_text() if job_description_el else None
-                    #print("Job Description:\n", job_description)
-
-                    #title_el = await page.query_selector("div.position-container h1.position-title")
-                    #job_title = await title_el.inner_text() if title_el else None
-
-                    #print("Job Title:", job_title)
-
                     
                     job_url = page.url
                     print("Job URL:", job_url)
@@ -850,10 +837,11 @@ async def scrape_northrop_grumman_jobs(url: str, max_jobs=10):
 
 
 
-async def scrape_inova_jobs(url: str, max_jobs=10):
+async def scrape_inova_aecom_jobs(url: str, jobsite = "aecom", state=None, max_jobs=10):
     async with async_playwright() as p:
         
-        csv_filename = "jobs_inova_mvdc.csv"
+        csv_filename = "jobs_"+jobsite+"_mvdc.csv"
+        date_formats = ["%m/%d/%Y", "%b %d, %Y", "%d-%b-%Y"]
 
         if not os.path.exists(csv_filename):
             with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
@@ -871,13 +859,45 @@ async def scrape_inova_jobs(url: str, max_jobs=10):
             try:
                 print("Clicking 'Show More Results'…")
                 load_more = await page.query_selector("button:has-text('Show More Results')")
+                #load_more = await page.query_selector("button:has-text('Show More Results'), button:has-text('More'), button[aria-label='Load more jobs']")
+                
+                if not load_more:
+                    print('read more here')
+                    buttons = page.locator("button[aria-label='Load more jobs']")
+                    count = await buttons.count()
+                    load_more = None
+                    for i in range(count):
+                        if await buttons.nth(i).is_visible():
+                            load_more = buttons.nth(i)
+                            break
+
+                if not load_more:
+                    print('read more here other')
+                    load_more = await page.query_selector("ul.js-pager__items.pager a[rel='next']:has-text('Load More')")
+
+                if not load_more:
+                    print('read more here new tile button')
+                    load_more = await page.query_selector("button#tile-more-results:has-text('More Search Results')")
+
+
+                print('the load_more is ',load_more )
                 if load_more:
-                    print("Clicking 'Show More Results'…")
+                    print("load_more: clicking 'Show More Results'…")
                     await load_more.click()
                     await page.wait_for_timeout(2000)
                 else:
-                    print("No more results to load.")
-                    break
+                    print("No botton, then scroll... ")
+                    previous_height = await page.evaluate("document.body.scrollHeight")
+                    await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                    await page.wait_for_timeout(2000)
+
+                    new_height = await page.evaluate("document.body.scrollHeight")
+                    if new_height == previous_height:
+                        print("No hay más resultados al hacer scroll.")
+                        break
+                    else:
+                        continue 
+                    
             except Exception as e:
                 print("Error clicking 'Show More Results':", e)
                 break
@@ -885,32 +905,69 @@ async def scrape_inova_jobs(url: str, max_jobs=10):
 
         results = []
 
+
+        print('reading job list...')
         while True:
 
-            await page.wait_for_selector("ul.jobs-list__list")
+            #await page.wait_for_selector("ul.jobs-list__list, ul#jobs, div.views-infinite-scroll-content-wrapper")
+            #await page.wait_for_selector(
+            #        "ul.jobs-list__list, ul#jobs, div.views-infinite-scroll-content-wrapper, ul.jobs-grid__list"
+            #    )
+            await page.wait_for_selector(
+                    "ul.jobs-list__list, ul#jobs, div.views-infinite-scroll-content-wrapper, ul.jobs-grid__list, ul#job-tile-list"
+                )
 
-            jobs = page.locator("ul.jobs-list__list > li[data-qa='searchResultItem']")
+            jobs = page.locator(
+                                "ul.jobs-list__list > li[data-qa='searchResultItem'], "
+                                "ul#jobs > li, "
+                                "div.views-infinite-scroll-content-wrapper > div.views-row, "
+                                "ul.jobs-grid__list > li[data-qa='searchResultItem'], "
+                                "ul#job-tile-list > li.job-tile"
+                                )
 
             count = await jobs.count()
             print(f"Found {count} jobs on this page.")
             
-            
-            for i in range(min(max_jobs - len(results), count)): # just in case for max _jobs is defined
-            #for i in range(min(limit - len(results), count)):
-                print("Processing job =========== ")
+        
+            for i in range(min(max_jobs - len(results), count)): 
+                
                 print(f"\nProcessing job after try #{len(results) + 1}")
                 
                 try:
 
                     card = jobs.nth(i)
-                    job_url = await card.locator("a.job-list-item__link").get_attribute("href")
+                    
+                    link_locator = card.locator("a.job-list-item__link")
+                    
+                    if await link_locator.count() > 0:
+                        href = await link_locator.first.get_attribute("href")
+                    else:
+                        link_locator_new = card.locator("div.views-field-field-workday-link a")
+                        if await link_locator_new.count() > 0:
+                            href = await link_locator_new.first.get_attribute("href")
+                        else:
+                            link_locator_grid = card.locator("a.job-grid-item__link")
+                            if await link_locator_grid.count() > 0:
+                                href = await link_locator_grid.first.get_attribute("href")
+                            else:
+                                link_locator_new2 = card.locator("a.jobTitle-link")
+                                if await link_locator_new2.count() > 0:
+                                    href = await link_locator_new2.first.get_attribute("href")
+                                else:
+                                    href = await card.locator("a").first.get_attribute("href")
+                    
+                    if href.startswith("http"):
+                        job_url = href
+                    else:
+                        job_url = urljoin(page.url, href)
 
-                    print("Job URL:", job_url)
+                    print("Job url:", job_url)
 
                     detail_page = await browser.new_page()
                     await detail_page.goto(job_url)
                     await detail_page.wait_for_selector("body")
-
+                    await page.wait_for_timeout(4000)
+                    
                     detail_html = await detail_page.content()
 
                     result = extract_description(detail_html)
@@ -933,11 +990,50 @@ async def scrape_inova_jobs(url: str, max_jobs=10):
                         except FileNotFoundError:
                             existing_ids = set()
 
-                    if (str(job_url) not in existing_urls): #str(job_data["job_id"]) not in existing_ids:
-                        
+
+                    print('the state is ', state)
+
+                    if not state == None:
+                        link = card.locator("a").first
+                        city_state_div = await link.locator("div").first.text_content()
+                        city_state_div = city_state_div.strip() if city_state_div else ""
+                        city, state_detected = (s.strip() for s in city_state_div.split(",")) if "," in city_state_div else ("", "")
+                        print('city and state ', city, state)
+                        job_data['city'] = city
+                        job_data['state'] = str(state)
+
+                    clean_date = job_data.get("posted_date") 
+
+                    formatted_date = None
+
+                    
+                    if clean_date:
+                        for fmt in date_formats:
+                            try:
+                                date_obj = datetime.strptime(clean_date, fmt)
+                                formatted_date = date_obj.strftime("%Y-%m-%d")
+                                break 
+                            except ValueError:
+                                continue
+
+                        if formatted_date is None:
+                            formatted_date = parse_relative_date(clean_date)
+
+                    if formatted_date:
+                        print("Formatted date:", formatted_date)
+                    else:
+                        print("Could not parse date:", clean_date)
+
+                    
+                    #if (str(job_url) not in existing_urls): #str(job_data["job_id"]) not in existing_ids:
+                    if job_url not in existing_urls:
+                        print('enter for saving ')
+                        if not formatted_date == None:
+                            job_data["posted_date"] = formatted_date
+
                         #job_data["job_title"] = job_title
                         job_data["job_url"] = str(job_url)
-                        job_data["company"] = "inova"
+                        job_data["company"] = jobsite
                         #job_data["is_remote"]  = False
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
@@ -961,7 +1057,7 @@ async def scrape_inova_jobs(url: str, max_jobs=10):
                     if len(results) >= max_jobs:
                         break
                 except Exception as e:
-                    print("Error:", e)
+                    print("Error for saving :", e)
                     print(job_data)
                     continue
                     
@@ -1130,7 +1226,7 @@ async def scrape_maximus_amazon_jobs(url: str, jobsite = "exelon", max_jobs=10):
                 writer.writeheader()
 
 
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
         await page.goto(url)
         await page.wait_for_selector("body")
@@ -1139,54 +1235,34 @@ async def scrape_maximus_amazon_jobs(url: str, jobsite = "exelon", max_jobs=10):
 
         while True:
             
-            await page.wait_for_selector(".job-tile, .article--result, mat-expansion-panel.search-result-item")
-            jobs = page.locator(".job-tile, .article--result, mat-expansion-panel.search-result-item")
+            #await page.wait_for_selector(".job-tile, .article--result, mat-expansion-panel.search-result-item, li.jobs-list-item, li.css-1q2dra3")
+            await page.wait_for_selector(
+            ".job-tile, .article--result, mat-expansion-panel.search-result-item, li.jobs-list-item, li.css-1q2dra3, div.job-item.job-item-posting"
+            )
 
+            #jobs = page.locator(".job-tile, .article--result, mat-expansion-panel.search-result-item, li.jobs-list-item, li.css-1q2dra3")
+            
+            jobs = page.locator(".job-tile, .article--result, mat-expansion-panel.search-result-item, li.jobs-list-item, li.css-1q2dra3, div.job-item.job-item-posting")
             count = await jobs.count()
             
             print(f"Found {count} jobs on this page.")
 
+
             for i in range(min(max_jobs - len(results), count)): 
-                print("Processing job =========== ")
+                
                 print(f"\nProcessing job after try #{len(results) + 1}")
 
                 try:
                     print(f"\nProcessing job after try #{len(results) + 1}")
                     card = jobs.nth(i)
                     
-                    link_el = card.locator(".job-link, h3.article__header__text__title a.link, a.job-title-link")
+                    link_el = card.locator(
+                        ".job-link, h3.article__header__text__title a.link, a.job-title-link, a[data-ph-at-id='job-link'], a[data-automation-id='jobTitle'], a.btn.primary_button_color"
+                    )
+
                     href = await link_el.first.get_attribute("href")
                     
-                    clean_date = ""
-                    formatted_date = None
-
-                    try:
-                        date_el = card.locator(".posting-date, span.list-item-posted")
-                        date = await date_el.first.inner_text()
-                        print("Posted date:", date)
-                        clean_date = date.replace("Posted", "").replace("posted", "").strip()
-
-                    except Exception:
-                        pass
-
-                    if clean_date:
-
-                        try:
-                            date_obj = datetime.strptime(clean_date, "%b %d, %Y")   
-                            formatted_date = date_obj.strftime("%Y-%m-%d") 
-                            print("Formatted date:", formatted_date)
-                        except ValueError:
-                            try:
-                                date_obj = datetime.strptime(clean_date, "%d-%b-%Y")
-                                formatted_date = date_obj.strftime("%Y-%m-%d")
-                                print("Formatted date:", formatted_date)
-                            except Exception:
-                                pass
                     
- 
-                    if not href:
-                        continue
-
                     if href.startswith("http"):
                         job_url = href
                     else:
@@ -1194,14 +1270,67 @@ async def scrape_maximus_amazon_jobs(url: str, jobsite = "exelon", max_jobs=10):
 
                     print("Job URL:", job_url)
 
+
+                    clean_date = ""
+                    formatted_date = None
+
+                    try:
+                        date_el = card.locator(".posting-date, span.list-item-posted, .job-postdate, dl dt:has-text('posted on') + dd")
+                        date = await date_el.first.inner_text()
+                        print("Posted date:", date)
+                        clean_date = date.replace("Posted", "").replace("posted", "").replace("Posted Date", "").replace("Date", "").strip()
+                        print("Posted date clean:", clean_date)
+                    except Exception:
+                        pass
+
+
+                    if clean_date:
+                        try:
+                            date_obj = datetime.strptime(clean_date, "%m/%d/%Y")
+                            formatted_date = date_obj.strftime("%Y-%m-%d")
+                            print("Formatted date:", formatted_date)
+                        except ValueError:
+                            try:
+                                date_obj = datetime.strptime(clean_date, "%b %d, %Y")
+                                formatted_date = date_obj.strftime("%Y-%m-%d")
+                                print("Formatted date:", formatted_date)
+                            except ValueError:
+                                try:
+                                    date_obj = datetime.strptime(clean_date, "%d-%b-%Y")
+                                    formatted_date = date_obj.strftime("%Y-%m-%d")
+                                    print("Formatted date:", formatted_date)
+                                except ValueError:
+                                    formatted_date = parse_relative_date(clean_date)
+                                    if formatted_date is None:
+                                        print("Could not parse date:", clean_date)
+                                        
+                                    print("Formatted date:", formatted_date)
+
+                    if not job_url:
+                        continue
+                    
+                    print('==== this is the job url', job_url)
+
+
                     detail_page = await browser.new_page()
                     await detail_page.goto(job_url)
                     await detail_page.wait_for_selector("body")
+                    await page.wait_for_load_state("networkidle")
+                    await page.wait_for_timeout(4000)
 
-                    detail_html = await detail_page.content()
+                    
+                    detail_html = ""
+                    json_ld = await detail_page.locator('script[type="application/ld+json"]').all_text_contents()
+
+                    if json_ld:
+                        detail_html = "\n".join(json_ld)
+                    else:
+                        detail_html = await detail_page.content()
+
+                    print('this is detail_html ', detail_html)
 
                     result = extract_description(detail_html)
-
+                    
                     results.append(result)
 
                     parsed_result = safe_parse_json(result)
@@ -1215,25 +1344,44 @@ async def scrape_maximus_amazon_jobs(url: str, jobsite = "exelon", max_jobs=10):
                     job_id = None
 
                     try:
-                        job_id_el = card.locator("span.list-item-jobId")
+                        job_id_el = card.locator("span.list-item-jobId, ul[data-automation-id='subtitle'] li")
+    
                         if await job_id_el.count() > 0:
                             job_id_text = await job_id_el.first.inner_text()
-                            job_id = job_id_text.split("#")[-1].strip()
+                            if "#" in job_id_text:
+                                job_id = job_id_text.split("#")[-1].strip()
+                            else:
+                                job_id = job_id_text.strip()
+                                
                             job_data["job_id"] = job_id
+                            print("Job ID:", job_id)
                     except Exception:
                         pass  
 
-                    print("Job ID:", job_id)
 
                     if os.path.exists(csv_filename):
                         try:
                             df = pd.read_csv(csv_filename)
                             existing_ids = set(df["job_id"].dropna().astype(str))
+                            existing_urls = set(df["job_url"].dropna().astype(str))
+                            
                         except FileNotFoundError:
                             existing_ids = set()
 
-                    if str(job_data["job_id"]) not in existing_ids:
-                        
+
+                    jobexist = False
+                    print('before saving ========= ')
+                    if False:#not str(job_data["job_id"]) == 'NA':
+                        if str(job_data["job_id"]) not in existing_ids:
+                            print('before saving ========= job_id ', str(job_data["job_id"]))
+                            jobexist = False
+                    if str(job_url) not in existing_urls:
+                        print('before saving ========= job_url ', str(job_url))
+                        jobexist = False
+
+
+                    if jobexist == False:
+                        print('during saving ========= ')
                         if not formatted_date == None:
                             job_data["posted_date"] = formatted_date
 
@@ -1254,8 +1402,9 @@ async def scrape_maximus_amazon_jobs(url: str, jobsite = "exelon", max_jobs=10):
                             print(f"\nSaving job #{len(results) + 1}")
                             print(job_data)
                             print("====================================================")
-                            
+                        
                     else:
+
                         print(f"Job {job_data['job_id']} already exists. ")
 
                     await detail_page.close()
@@ -1263,7 +1412,7 @@ async def scrape_maximus_amazon_jobs(url: str, jobsite = "exelon", max_jobs=10):
                     if len(results) >= max_jobs:
                         break
                 except Exception as e:
-                    print("Error:", e)
+                    print("Error saving job_data ====== :", e)
                     print(job_data)
                     continue
                     
@@ -1276,12 +1425,21 @@ async def scrape_maximus_amazon_jobs(url: str, jobsite = "exelon", max_jobs=10):
 
 
             try:
+                
+                #next_button = await page.query_selector(
+                #'button[aria-label="Next page"], button[aria-label="Next Page of Job Search Results"], a.paginationNextLink, a.next-btn')
+
                 next_button = await page.query_selector(
-                                                        'button[aria-label="Next page"], '
-                                                        'button[aria-label="Next Page of Job Search Results"], '
-                                                        'a.paginationNextLink'
-                                                        )
-                                                                
+                            'button[aria-label="Next page"], '
+                            'button[aria-label="Next Page of Job Search Results"], '
+                            'a.paginationNextLink, '
+                            'a.next-btn, '
+                            'button[aria-label="next"], '
+                            'a.next_page'  
+                        )
+
+                print('button ', next_button)     
+
                 if next_button:
                     tag = await next_button.get_property("tagName")
                     if (await tag.json_value()).lower() == "a":

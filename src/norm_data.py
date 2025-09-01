@@ -1,8 +1,7 @@
 import csv
 import json
 import re
-from datetime import datetime
-
+from datetime import datetime, timedelta
 
 def normalize_job_data(result):
     """
@@ -91,4 +90,32 @@ def normalize_job_data(result):
         return result
 
     return None
+
+
+
+
+def parse_relative_date(relative_text):
+    """
+    Converst text like '2 Days Ago' to YYYY-MM-DD
+    """
+    today = datetime.today()
+    
+    relative_text = relative_text.lower().strip()
+    
+    match = re.match(r'(\d+)\s+(day|week|month|year)s?\s+ago', relative_text)
+    
+    if match:
+        value, unit = int(match.group(1)), match.group(2)
+        
+        if unit == "day":
+            date_obj = today - timedelta(days=value)
+        elif unit == "week":
+            date_obj = today - timedelta(weeks=value)
+        elif unit == "month":
+            date_obj = today - timedelta(days=value*30)
+        elif unit == "year":
+            date_obj = today - timedelta(days=value*365)
+        
+        return date_obj.strftime("%Y-%m-%d")
+    
 
