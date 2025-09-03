@@ -1,13 +1,12 @@
 import asyncio
 import json
+from urljoblist import jobs
 
-from scrap_wp import scrape_maximus_amazon_jobs, scrape_inova_aecom_jobs
+from scrap_wp import scrape_jobs_list_pagination, scrape_inova_aecom_jobs
 
 if __name__ == "__main__":
-    import json
 
-    url = "https://www.amazon.jobs/en/search" # https://jobs.pwcs.edu/"  # lcps.schoolspring.com 
-    
+    url = "https://www.amazon.jobs/en/search" 
     
     url = "https://careers.medstarhealth.org/global/en/search-results"
     
@@ -49,7 +48,8 @@ if __name__ == "__main__":
 
     url = "https://careers.underarmour.com/search/?searchby=location&createNewAlert=false&q=&locationsearch=Maryland&geolocation="
 
-
+    url = "https://careers.underarmour.com/search/?searchby=location&createNewAlert=false&q=&locationsearch=virginia&geolocation="
+    
     #results = asyncio.run(scrape_amazon_jobs(url, max_jobs=3000))
     #results = asyncio.run(scrape_medstar_jobs(url, max_jobs=4000))
     #results = asyncio.run(scrape_mcdean_jobs(url, max_jobs=4000))
@@ -62,7 +62,27 @@ if __name__ == "__main__":
     
     #results = asyncio.run(scrape_maximus_amazon_jobs(url, jobsite = "george_washington_niversity", max_jobs=4000))
 
-    results = asyncio.run(scrape_inova_aecom_jobs(url, jobsite = "underarmour", state=None, max_jobs=4000))
+    #results = asyncio.run(scrape_inova_aecom_jobs(url, jobsite = "underarmour", state=None, max_jobs=4000))
 
     
-    print(json.dumps(results, indent=2))
+    for job in jobs:
+        url = job["url"]
+        company = job["company"]
+
+        print(f"Scraping {company} - {url}")
+        
+        results = asyncio.run(
+            scrape_jobs_list_pagination(
+                url,
+                jobsite=company,
+                max_jobs=4000
+            )
+        )
+        print(json.dumps(results, indent=2))
+
+        break
+
+
+# scrape_jobs_list_pagination : list and next button with pages-> amazon, 
+# : load more pages and collect each card
+# : 

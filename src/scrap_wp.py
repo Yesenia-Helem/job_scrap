@@ -86,7 +86,6 @@ async def scrape_amazon_jobs(url: str, max_jobs=10):
                 
             await page.wait_for_selector(".job-link")
             jobs = page.locator(".job-tile")
-            #jobs = page.locator(".job-link")
             
             count = await jobs.count()
             limit = max_jobs if max_jobs is not None else count
@@ -1214,11 +1213,12 @@ async def scrape_jhons_hopkins_jobs(url: str, max_jobs=10):
         return results
 
 
-async def scrape_maximus_amazon_jobs(url: str, jobsite = "exelon", max_jobs=10):
+async def scrape_jobs_list_pagination(url: str, jobsite = "", max_jobs=10):
 
     async with async_playwright() as p:
         
-        csv_filename = "jobs_"+jobsite+"_mvdc.csv"
+        
+        csv_filename = f"jobs_{jobsite.lower()}_mvdc.csv"
 
         if not os.path.exists(csv_filename):
             with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
@@ -1235,13 +1235,10 @@ async def scrape_maximus_amazon_jobs(url: str, jobsite = "exelon", max_jobs=10):
 
         while True:
             
-            #await page.wait_for_selector(".job-tile, .article--result, mat-expansion-panel.search-result-item, li.jobs-list-item, li.css-1q2dra3")
             await page.wait_for_selector(
             ".job-tile, .article--result, mat-expansion-panel.search-result-item, li.jobs-list-item, li.css-1q2dra3, div.job-item.job-item-posting"
             )
 
-            #jobs = page.locator(".job-tile, .article--result, mat-expansion-panel.search-result-item, li.jobs-list-item, li.css-1q2dra3")
-            
             jobs = page.locator(".job-tile, .article--result, mat-expansion-panel.search-result-item, li.jobs-list-item, li.css-1q2dra3, div.job-item.job-item-posting")
             count = await jobs.count()
             
@@ -1315,8 +1312,8 @@ async def scrape_maximus_amazon_jobs(url: str, jobsite = "exelon", max_jobs=10):
                     detail_page = await browser.new_page()
                     await detail_page.goto(job_url)
                     await detail_page.wait_for_selector("body")
-                    await page.wait_for_load_state("networkidle")
-                    await page.wait_for_timeout(4000)
+                    #await page.wait_for_load_state("networkidle")
+                    await page.wait_for_timeout(1000)
 
                     
                     detail_html = ""
