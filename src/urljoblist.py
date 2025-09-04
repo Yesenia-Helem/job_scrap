@@ -1,9 +1,9 @@
-jobs = [
+JOBS = [
     {"company_id": "001", 
      "company": "amazon", 
      "scrape_method":"scrape_jobs_list_pagination", 
      "urls": {
-         "all_state": "https://www.amazon.jobs/en/search?offset=0&result_limit=10&sort=relevant&country%5B%5D=USA&state%5B%5D=Virginia&state%5B%5D=Maryland&state%5B%5D=District%20of%20Columbia&distanceType=Mi&radius=24km&latitude=&longitude=&loc_group_id=&loc_query=&base_query=&city=&country=&region=&county=&query_options=&"
+         "default": "https://www.amazon.jobs/en/search?offset=0&result_limit=10&sort=relevant&country%5B%5D=USA&state%5B%5D=Virginia&state%5B%5D=Maryland&state%5B%5D=District%20of%20Columbia&distanceType=Mi&radius=24km&latitude=&longitude=&loc_group_id=&loc_query=&base_query=&city=&country=&region=&county=&query_options=&"
         }
      },
     {"company_id": "002", 
@@ -28,49 +28,49 @@ jobs = [
      "company": "clarkconstruction",
      "scrape_method":"scrape_jobs_load_more", 
      "urls": {
-         "all_state": "https://www.clarkconstruction.com/build-your-career/search-apply?page=1"
+         "default": "https://www.clarkconstruction.com/build-your-career/search-apply?page=1"
         }
     },
     {"company_id": "005", 
      "company": "exelon", 
      "scrape_method": "scrape_jobs_list_pagination", 
      "urls": {
-         "all_state": "https://jobs.exeloncorp.com/careers-home/jobs?state=Maryland%7CWashington,%20DC&page=1"
+         "default": "https://jobs.exeloncorp.com/careers-home/jobs?state=Maryland%7CWashington,%20DC&page=1"
         }
     },
     {"company_id": "006", 
      "company": "george_washington_university", 
      "scrape_method":"scrape_jobs_list_pagination", 
      "urls": {
-       "all_state": "https://www.gwu.jobs/postings/search"
+       "default": "https://www.gwu.jobs/postings/search"
         }
      },
     {"company_id": "007", 
      "company": "georgetown_university", 
      "scrape_method":"scrape_jobs_list_pagination", 
      "urls": {
-         "all_state": "https://georgetown.wd1.myworkdayjobs.com/Georgetown_Admin_Careers"
+         "default": "https://georgetown.wd1.myworkdayjobs.com/Georgetown_Admin_Careers"
         }
      },
     {"company_id": "008", 
      "company": "howard_university", 
      "scrape_method":"scrape_jobs_list_pagination", 
      "urls": {
-         "all_state": "https://howard.wd1.myworkdayjobs.com/HU"
+         "default": "https://howard.wd1.myworkdayjobs.com/HU"
         }
     },
     {"company_id": "009", 
      "company": "inova", 
      "scrape_method":"scrape_jobs_load_more", 
      "urls": {
-         "all_state" : "https://elar.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?mode=location"
+         "default" : "https://elar.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/jobs?mode=location"
         }
      },
     {"company_id": "010", 
      "company": "jhons_hopkins", 
      "scrape_method":"scrape_jobs_load_more", 
      "urls": {
-         "all_state": "https://jobs.jhu.edu/search/?createNewAlert=false&q=&optionsFacetsDD_facility=&optionsFacetsDD_dept=&optionsFacetsDD_shifttype=&optionsFacetsDD_customfield1=&optionsFacetsDD_state="
+         "default": "https://jobs.jhu.edu/search/?createNewAlert=false&q=&optionsFacetsDD_facility=&optionsFacetsDD_dept=&optionsFacetsDD_shifttype=&optionsFacetsDD_customfield1=&optionsFacetsDD_state="
         }
      },
     {"company_id": "011", 
@@ -85,27 +85,27 @@ jobs = [
      "company": "maximus", 
      "scrape_method":"scrape_jobs_list_pagination", 
      "urls": {
-         "all_state": "https://maximus.avature.net/careers/SearchJobs/?6100=6047&6100_format=6846&6097=%5B11232%2C11245%2C11275%5D&6097_format=6843&listFilterMode=1&folderRecordsPerPage=6&"
+         "default": "https://maximus.avature.net/careers/SearchJobs/?6100=6047&6100_format=6846&6097=%5B11232%2C11245%2C11275%5D&6097_format=6843&listFilterMode=1&folderRecordsPerPage=6&"
         }
      },
     {"company_id": "013", 
      "company": "mcdean", 
      "scrape_method":"scrape_mcdean_jobs", 
      "urls": {
-         "all_state": "https://careers.mcdean.com/jobs?page=1&locations=Aldie%C2%A0,Virginia,United%20States%7CAlexandria%C2%A0,Virginia,United%20States%7CAnnapolis%20Junction%C2%A0,Maryland,United%20States%7CAnnapolis,Maryland,United%20States%7CArlington%C2%A0,Virginia,United%20States%7CAshburn%C2%A0,Virginia,United%20States%7CBaltimore%C2%A0,Maryland,United%20States%7CBethesda%C2%A0,Maryland,United%20States%7CBoydton%C2%A0,Virginia,United%20States%7CCaroline%20County%C2%A0,Virginia,United%20States%7CChantilly%C2%A0,Virginia,United%20States%7CCharlottesville%C2%A0,Virginia,United%20States%7CChesapeake%C2%A0,Virginia,United%20States%7CChristiansburg%C2%A0,Virginia,United%20States%7CCollege%20Park%C2%A0,Maryland,United%20States%7CDistrict%20of%20Columbia,Washington~%20DC,United%20States%7CDulles%C2%A0,Virginia,United%20States%7CFairfax%C2%A0,Virginia,United%20States%7CFalls%20Church%C2%A0,Virginia,United%20States%7CFort%20Meade%C2%A0,Maryland,United%20States%7CFredericksburg%C2%A0,Virginia,United%20States%7CFrederick%C2%A0,Maryland,United%20States%7CFt.%20Belvoir,Virginia,United%20States%7CGaithersburg%C2%A0,Maryland,United%20States%7CHarrisonburg%C2%A0,Virginia,United%20States%7CLaurel%C2%A0,Maryland,United%20States%7CLeesburg%C2%A0,Virginia,United%20States%7CLottsburg%C2%A0,Virginia,United%20States%7CManassas%C2%A0,Virginia,United%20States%7CMcLean%C2%A0,Virginia,United%20States%7CNorfolk%C2%A0,Virginia,United%20States%7CRichmond%C2%A0,Virginia,United%20States%7CSouth%20Hill%C2%A0,Virginia,United%20States%7CSpringfield%C2%A0,Virginia,United%20States%7CSterling%C2%A0,Virginia,United%20States%7CTysons%C2%A0,Virginia,United%20States%7CUrbana%C2%A0,Maryland,United%20States%7CVirginia%20Beach%C2%A0,Virginia,United%20States%7CWarrenton%C2%A0,Virginia,United%20States%7CWashington%C2%A0,Washington~%20DC,United%20States%7CWinchester%C2%A0,Virginia,United%20States"
+         "default": "https://careers.mcdean.com/jobs?page=1&locations=Aldie%C2%A0,Virginia,United%20States%7CAlexandria%C2%A0,Virginia,United%20States%7CAnnapolis%20Junction%C2%A0,Maryland,United%20States%7CAnnapolis,Maryland,United%20States%7CArlington%C2%A0,Virginia,United%20States%7CAshburn%C2%A0,Virginia,United%20States%7CBaltimore%C2%A0,Maryland,United%20States%7CBethesda%C2%A0,Maryland,United%20States%7CBoydton%C2%A0,Virginia,United%20States%7CCaroline%20County%C2%A0,Virginia,United%20States%7CChantilly%C2%A0,Virginia,United%20States%7CCharlottesville%C2%A0,Virginia,United%20States%7CChesapeake%C2%A0,Virginia,United%20States%7CChristiansburg%C2%A0,Virginia,United%20States%7CCollege%20Park%C2%A0,Maryland,United%20States%7CDistrict%20of%20Columbia,Washington~%20DC,United%20States%7CDulles%C2%A0,Virginia,United%20States%7CFairfax%C2%A0,Virginia,United%20States%7CFalls%20Church%C2%A0,Virginia,United%20States%7CFort%20Meade%C2%A0,Maryland,United%20States%7CFredericksburg%C2%A0,Virginia,United%20States%7CFrederick%C2%A0,Maryland,United%20States%7CFt.%20Belvoir,Virginia,United%20States%7CGaithersburg%C2%A0,Maryland,United%20States%7CHarrisonburg%C2%A0,Virginia,United%20States%7CLaurel%C2%A0,Maryland,United%20States%7CLeesburg%C2%A0,Virginia,United%20States%7CLottsburg%C2%A0,Virginia,United%20States%7CManassas%C2%A0,Virginia,United%20States%7CMcLean%C2%A0,Virginia,United%20States%7CNorfolk%C2%A0,Virginia,United%20States%7CRichmond%C2%A0,Virginia,United%20States%7CSouth%20Hill%C2%A0,Virginia,United%20States%7CSpringfield%C2%A0,Virginia,United%20States%7CSterling%C2%A0,Virginia,United%20States%7CTysons%C2%A0,Virginia,United%20States%7CUrbana%C2%A0,Maryland,United%20States%7CVirginia%20Beach%C2%A0,Virginia,United%20States%7CWarrenton%C2%A0,Virginia,United%20States%7CWashington%C2%A0,Washington~%20DC,United%20States%7CWinchester%C2%A0,Virginia,United%20States"
         }
     },
     {"company_id": "014", 
      "company": "medstarhealth", 
      "scrape_method":"scrape_jobs_list_pagination", 
      "urls": {
-         "all_state": "https://careers.medstarhealth.org/global/en/search-results"
+         "default": "https://careers.medstarhealth.org/global/en/search-results"
         }
      },
     {"company_id": "015", 
      "company": "northrop_grumman", 
-     "scrape_method":"scrape_jobs_load_more", 
-     "url":{
+     "scrape_method":"scrape_northrop_grumman_jobs", 
+     "urls":{
          "Maryland": "https://jobs.northropgrumman.com/careers?pid=1340058149304&State=Maryland&triggerGoButton=false&triggerGoButton=true&source=APPLICANT_SOURCE-3-504",
          "Virginia": "https://jobs.northropgrumman.com/careers?pid=1340067610613&State=Virginia&triggerGoButton=false&triggerGoButton=true&source=APPLICANT_SOURCE-3-504"
         }
@@ -113,8 +113,8 @@ jobs = [
     {"company_id": "016", 
      "company": "truist", 
      "scrape_method": "scrape_jobs_list_pagination", 
-     "url": {
-         "all_state": "https://careers.truist.com/us/en/search-results?keywords="
+     "urls": {
+         "default": "https://careers.truist.com/us/en/search-results?keywords="
         }
     },
     {"company_id": "017", 

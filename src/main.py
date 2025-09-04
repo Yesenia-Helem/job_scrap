@@ -1,12 +1,19 @@
 import asyncio
 import json
-from urljoblist import jobs
+from urljoblist import JOBS
 
-from scrap_wp import scrape_jobs_list_pagination, scrape_jobs_load_more, scrape_capitalone_jobs, scrape_mcdean_jobs, scrape_northrop_grumman_jobs
+from scrap_wp import *#scrape_jobs_list_pagination, scrape_jobs_load_more, scrape_capitalone_jobs, scrape_mcdean_jobs, scrape_northrop_grumman_jobs
 
-def get_company_job(obs, company_name, company_id):
-    return next((job for job in obs if job["company"] == company_name), None)
+from scrapefuntions import SCRAPE_FUNCTIONS
 
+def get_company_job(jobs, company_name, company_id):
+    return next((job for job in jobs if job["company"] == company_name), None)
+
+def get_company_job(obs, company_name, company_id=None):
+    return next(
+        (job for job in obs if job["company"] == company_name and (company_id is None or job["company_id"] == company_id)),
+        None
+    )
 
 if __name__ == "__main__":
 
@@ -56,12 +63,6 @@ if __name__ == "__main__":
 
     url = "https://careers.underarmour.com/search/?searchby=location&createNewAlert=false&q=&locationsearch=virginia&geolocation="
     
-    #results = asyncio.run(scrape_amazon_jobs(url, max_jobs=3000))
-    #results = asyncio.run(scrape_medstar_jobs(url, max_jobs=4000))
-    #results = asyncio.run(scrape_mcdean_jobs(url, max_jobs=4000))
-    #results = asyncio.run(scrape_dynamic_jobs(url, max_jobs=30))
-    #results = asyncio.run(scrape_amazon_jobs(url, max_jobs=3000))
-    #results = asyncio.run(scrape_capitalone_jobs(url, max_jobs=4000))
     #results = asyncio.run(scrape_northrop_grumman_jobs(url, max_jobs=3000))
     #results = asyncio.run(scrape_inova_jobs(url, max_jobs=3000))
     #results = asyncio.run(scrape_jhons_hopkins_jobs(url, max_jobs=3000))
@@ -72,15 +73,34 @@ if __name__ == "__main__":
 
     
 
-    job_selected = get_company_job(jobs, "northrop_grumman", "015")
+    job_selected = get_company_job(JOBS, "northrop_grumman", "015")
 
+    print("job_selected", job_selected)
 
-    url = job_selected["url"]
     company = job_selected["company"]
     company_id = job_selected["company_id"]
+    scrape_method = job_selected["scrape_method"]
+    
+    scrape_fn = SCRAPE_FUNCTIONS.get(scrape_method)
+    
+    results = {}
+    max_jobs = 4000
 
+    print(job_selected["urls"].items())
 
-    print(url, company, company_id)
+    for state, url in job_selected["urls"].items():
+        print(f"{company} ({company_id}) - {state}: {url}")
+        results[state] = asyncio.run(
+                scrape_fn(
+                    url,
+                    jobsite=company,
+                    company_id=company_id,
+                    state=state,
+                    max_jobs=max_jobs
+                )
+            )
+    
+        
     #for job in jobs:
     #    url = job["url"]
     #    company = job["company"]
@@ -88,7 +108,7 @@ if __name__ == "__main__":
 
     #    print(f"Scraping {company} - {url}")
         
-    sw = True
+    sw = False
 
     if sw:
         results = asyncio.run(
@@ -101,14 +121,7 @@ if __name__ == "__main__":
                 )
             )
 
-    else:
-        results = asyncio.run(
-            scrape_jobs_load_more(
-                url, 
-                jobsite = company, 
-                company_id=company_id,
-                state=None, 
-                max_jobs=4000))
+
 
  #       print(json.dumps(results, indent=2))
 

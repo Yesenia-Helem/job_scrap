@@ -14,7 +14,6 @@ from datetime import datetime
 
 
 
-
 async def scrape_lcps(url: str, max_jobs=10):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
@@ -63,7 +62,7 @@ async def scrape_lcps(url: str, max_jobs=10):
         return results
     
 
-async def scrape_mcdean_jobs(url: str, jobsite="", company_id="", state=None, max_jobs=10):
+async def scrape_mcdean_jobs(url: str, jobsite="mcdean", company_id=None, state=None, max_jobs=10):
     async with async_playwright() as p:
         
         csv_filename = "jobs_"+jobsite+"_mvdc.csv"
@@ -202,8 +201,7 @@ async def scrape_mcdean_jobs(url: str, jobsite="", company_id="", state=None, ma
         return results
     
 
-
-async def scrape_capitalone_jobs(url: str,jobsite = "capitalone", company_id="", state=None,  max_jobs=10):
+async def scrape_capitalone_jobs(url: str,jobsite = "capitalone", company_id=None, state=None,  max_jobs=10):
     async with async_playwright() as p:
         
         csv_filename = f"jobs_{jobsite.lower()}_mvdc.csv"
@@ -383,10 +381,11 @@ async def scrape_capitalone_jobs(url: str,jobsite = "capitalone", company_id="",
         return results
     
 
-
-async def scrape_northrop_grumman_jobs(url: str, jobsite = "northrop_grumman", company_id="", state=None, max_jobs=10):
+async def scrape_northrop_grumman_jobs(url: str, jobsite = "northrop_grumman", company_id=None, state=None, max_jobs=10):
 
     async with async_playwright() as p:
+        
+        print('init ---- scrape_northrop_grumman_jobs method --- ')
         
         csv_filename = "jobs_"+jobsite+"_mvdc.csv"
         
@@ -495,7 +494,7 @@ async def scrape_northrop_grumman_jobs(url: str, jobsite = "northrop_grumman", c
             return results
 
 
-async def scrape_jobs_load_more(url: str, jobsite = "aecom", company_id="", state=None, max_jobs=10):
+async def scrape_jobs_load_more(url: str, jobsite = None, company_id=None, state=None, max_jobs=10):
     async with async_playwright() as p:
         
         csv_filename = "jobs_"+jobsite+"_mvdc.csv"
