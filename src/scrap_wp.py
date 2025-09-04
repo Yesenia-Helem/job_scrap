@@ -11,7 +11,7 @@ from norm_data import normalize_job_data, safe_parse_json, parse_relative_date
 from llm_model import extract_description
 import pandas as pd
 from datetime import datetime
-
+import jobnames 
 
 
 async def scrape_lcps(url: str, max_jobs=10):
@@ -386,7 +386,7 @@ async def scrape_northrop_grumman_jobs(url: str, jobsite = "northrop_grumman", c
     async with async_playwright() as p:
         
         print('init ---- scrape_northrop_grumman_jobs method --- ')
-        
+
         csv_filename = "jobs_"+jobsite+"_mvdc.csv"
         
         if not os.path.exists(csv_filename):
@@ -664,9 +664,8 @@ async def scrape_jobs_load_more(url: str, jobsite = None, company_id=None, state
                             existing_ids = set()
 
 
-                    print('the state is ', state)
+                    if not state == None and (not jobsite == jobnames.UNDERARMOUR):
 
-                    if not state == None:
                         link = card.locator("a").first
                         city_state_div = await link.locator("div").first.text_content()
                         city_state_div = city_state_div.strip() if city_state_div else ""
@@ -739,12 +738,11 @@ async def scrape_jobs_load_more(url: str, jobsite = None, company_id=None, state
                     if detail_page:
                         await detail_page.close()
 
-            if len(results) >= max_jobs:
-                break
+            #if len(results) >= max_jobs:
+            #    break
 
-
-        await browser.close()
-        return results
+            await browser.close()
+            return results
 
 
 async def scrape_jobs_list_pagination(url: str, jobsite = "", company_id="", max_jobs=10):

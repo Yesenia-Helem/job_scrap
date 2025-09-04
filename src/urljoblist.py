@@ -1,3 +1,4 @@
+
 JOBS = [
     {"company_id": "001", 
      "company": "amazon", 
@@ -16,7 +17,7 @@ JOBS = [
         }
      },
     {"company_id": "003", 
-     "company": "jobs_capitalone", 
+     "company": "capitalone", 
      "scrape_method":"scrape_capitalone_jobs",
      "urls": {
          "Virginia": "https://www.capitalonecareers.com/search-jobs/Virginia%2C%20US/234/3/6252001-6254928/37x54812/-77x44675/50/2",
