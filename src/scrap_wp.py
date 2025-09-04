@@ -61,302 +61,22 @@ async def scrape_lcps(url: str, max_jobs=10):
 
         await browser.close()
         return results
+    
 
-
-async def scrape_amazon_jobs(url: str, max_jobs=10):
+async def scrape_mcdean_jobs(url: str, jobsite="", company_id="", state=None, max_jobs=10):
     async with async_playwright() as p:
         
-        csv_filename = "jobs_amazon_mvdc.csv"
-
-        if not os.path.exists(csv_filename):
-            with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "job_id", "city", "state", "salary", "posted_date", "job_url", "company", "education_needed", "is_remote", "last_scanned_at", "description_summary"])
-                writer.writeheader()
-
-
-        browser = await p.chromium.launch(headless=False)
-        page = await browser.new_page()
-        await page.goto(url)
-        await page.wait_for_selector("body")
-
-        results = []
-
-        while True:
-
-                
-            await page.wait_for_selector(".job-link")
-            jobs = page.locator(".job-tile")
-            
-            count = await jobs.count()
-            limit = max_jobs if max_jobs is not None else count
-
-            print(f"Found {count} jobs on this page.")
-
-            for i in range(min(max_jobs - len(results), count)): # just in case for max _jobs is defined
-            #for i in range(min(limit - len(results), count)):
-                print("Processing job =========== ")
-                print(f"\nProcessing job after try #{len(results) + 1}")
-
-                try:
-                    print(f"\nProcessing job after try #{len(results) + 1}")
-                    card = jobs.nth(i)
-                    print(card)
-
-                    link_el = card.locator(".job-link")
-                    href = await link_el.get_attribute("href")
-                    #href = await jobs.nth(i).get_attribute("href")
-                    date_el = card.locator(".posting-date")
-                    date = await date_el.inner_text()
-
-                    #dates = await jobs.nth(i).locator("h2.posting-date").inner_text()
-    
-                    clean_date = date.replace("Posted", "").strip()
-                    date_obj = datetime.strptime(clean_date, "%B %d, %Y")
-                    formatted_date = date_obj.strftime("%Y-%m-%d")
-                    
-                    if not href:
-                        continue
-
-                    job_url = urljoin(page.url, href)
-
-                    detail_page = await browser.new_page()
-                    await detail_page.goto(job_url)
-                    await detail_page.wait_for_selector("body")
-
-                    detail_html = await detail_page.content()
-
-                    result = extract_description(detail_html)
-                    results.append(result)
-
-                    parsed_result = safe_parse_json(result)
-                    
-                    job_data = normalize_job_data(parsed_result)
-                    
-                    if job_data is None:
-                        print("Could not process job data correctly, skipping.")
-                        continue
-
-                    if os.path.exists(csv_filename):
-                        try:
-                            df = pd.read_csv(csv_filename)
-                            existing_ids = set(df["job_id"].dropna().astype(str))
-                        except FileNotFoundError:
-                            existing_ids = set()
-
-                    if str(job_data["job_id"]) not in existing_ids:
-                        
-                        job_data["posted_date"] = formatted_date
-                        job_data["job_url"] = str(job_url)
-                        job_data["company"] = "amazon"
-                        job_data["is_remote"]  = False
-                        job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                        
-                        with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
-                            all_fieldnames = [
-                                "job_title", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "company", "education_needed", "is_remote",
-                                "last_scanned_at", "description"
-                            ]
-                            #job_title", "job_id", "location", "salary", "posted_date", "job_url", "company", "education_needed", "is_remote", "last_scanned_at", "description_summary"])
-                
-                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)#fieldnames=["job_title", "job_id", "location", "salary", "posted_date", "description"])
-                            writer.writerow(job_data)
-                            print(f"\nSaving job #{len(results) + 1}")
-                            print(job_data)
-                            print("====================================================")
-                            
-                    else:
-                        print(f"Job {job_data['job_id']} already exists. ")
-
-                    await detail_page.close()
-    
-                    if len(results) >= max_jobs:
-                        break
-                except Exception as e:
-                    print("Error:", e)
-                    print(job_data)
-                    print("End error ////////////////////////////////////////////////////")
-                    continue
-                    
-                finally:
-                    if detail_page:
-                        await detail_page.close()
-
-            if len(results) >= max_jobs:
-                break
-
-            try:
-                next_button = await page.query_selector('button[aria-label="Next page"]')
-                if next_button:
-                    print("Going to next page…")
-                    await next_button.click()
-                    await page.wait_for_timeout(3000)
-                else:
-                    print("No more pages.")
-                    break
-            except Exception as e:
-                print("Error finding next page button:", e)
-                break
-
-        await browser.close()
-        return results
-    
-
-async def scrape_medstar_jobs(url: str, max_jobs=10):
-    async with async_playwright() as p:
+        csv_filename = "jobs_"+jobsite+"_mvdc.csv"
         
-        csv_filename = "jobs_medstar_mvdc.csv"
-
         salary_pattern = re.compile(
             r"\$[\d,]+(?:\.\d+)?\s*(?:-|to)?\s*\$?[\d,]*(?:\.\d+)?(?:\s*(?:per\s*(?:hour|year)|/hour|/year))?",
             re.IGNORECASE
         )
 
-
         if not os.path.exists(csv_filename):
             with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "job_id", "city", "state", "salary", "posted_date", "job_url", "company", "education_needed", "is_remote", "last_scanned_at", "description"])
+                writer = csv.DictWriter(f, fieldnames=["job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date", "job_url",  "education_needed", "is_remote", "ended_at", "last_scanned_at", "description_summary"])
                 writer.writeheader()
-
-
-        browser = await p.chromium.launch(headless=False)
-        page = await browser.new_page()
-        await page.goto(url)
-        await page.wait_for_selector("body")
-
-        results = []
-
-        while True:
-    
-            print('enter for searching jobs...')
-            await page.wait_for_selector('ul[data-ph-at-id="jobs-list"]')
-            jobs = page.locator('ul[data-ph-at-id="jobs-list"] > li.jobs-list-item')
-            count = await jobs.count()
-            print(f"Found {count} jobs on the page.")
-
-            for i in range(count):
-                #if max_jobs is not None and len(results) >= max_jobs:
-                #    break
-
-                try:
-                    href = await jobs.nth(i).locator('a[data-ph-at-id="job-link"]').get_attribute("href")
-                    if not href:
-                        continue
-
-                    job_url = urljoin(page.url, href)
-
-                    detail_page = await browser.new_page()
-                    await detail_page.goto(job_url)
-                    await detail_page.wait_for_selector("body")
-
-                    detail_html = await detail_page.content()
-                    
-                    #description = await detail_page.inner_html("body")
-
-                    match = salary_pattern.search(detail_html)
-                    salary = match.group(0) if match else "NA"
-
-                
-                    result = extract_description(detail_html)
-                    results.append(result)
-
-                    #job_data = result.get("content", {})#json.loads(result)
-
-                    parsed_result = safe_parse_json(result)
-                    job_data = normalize_job_data(parsed_result)
-                    
-                    if job_data is None:
-                        print("Could not process job data correctly, skipping.")
-                        continue
-
-                    if os.path.exists(csv_filename):
-                        try:
-                            df = pd.read_csv(csv_filename)
-                            existing_ids = set(df["job_id"].dropna().astype(str))
-                        except FileNotFoundError:
-                            existing_ids = set()
-
-                    print("====================================================")
-                    
-                    if str(job_data["job_id"]) not in existing_ids:
-
-                        job_data["salary"] = salary
-                        job_data["job_url"] = str(job_url)
-                        job_data["company"] = "medstar"
-                        job_data["is_remote"]  = False
-                        job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                        
-                        with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
-                            all_fieldnames = [
-                                "job_title", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "company", "education_needed", "is_remote",
-                                "last_scanned_at", "description"
-                            ]
-                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)#fieldnames=["job_title", "job_id", "location", "salary", "posted_date", "description"])
-                            
-                            writer.writerow(job_data)
-                            print(f"\nSaving job #{len(results) + 1}")
-                            print(job_data)
-                            print("====================================================")
-                            
-                    else:
-                        print(f"Job {job_data['job_id']} already exists. ")
-
-                    await detail_page.close()
-
-                    if len(results) >= max_jobs:
-                        break
-                except Exception as e:
-                    print("Init error ////////////////////////////////////////////////////")
-                    print("before normalizacion result")
-                    print(result)
-                    print('..........')
-                    print(job_data)
-                    print("Error:", e)
-                    print("End error ////////////////////////////////////////////////////")
-                    continue
-                    
-                finally:
-                    if detail_page:
-                        await detail_page.close()
-
-            try:
-                load_more = await page.query_selector("text=/load more|more jobs|next/i")
-                if load_more:
-                    print("Clicking 'Load more'…")
-                    await load_more.click()
-                    await page.wait_for_timeout(3000)
-                    print("Clicked'Load more'…")
-                    
-                else:
-                    print("No more pages.")
-                    break
-            except Exception as e:
-                print("Error finding next page button:", e)
-                break
-
-
-
-        await browser.close()
-        return results
-    
-
-async def scrape_mcdean_jobs(url: str, max_jobs=10):
-    async with async_playwright() as p:
-        
-        csv_filename = "jobs_mcdean_mvdc.csv"
-
-        salary_pattern = re.compile(
-            r"\$[\d,]+(?:\.\d+)?\s*(?:-|to)?\s*\$?[\d,]*(?:\.\d+)?(?:\s*(?:per\s*(?:hour|year)|/hour|/year))?",
-            re.IGNORECASE
-        )
-
-
-        if not os.path.exists(csv_filename):
-            with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "job_id", "city", "state", "salary", "posted_date", "job_url", "company", "education_needed", "is_remote", "last_scanned_at", "description"])
-                writer.writeheader()
-
 
         browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
@@ -366,7 +86,6 @@ async def scrape_mcdean_jobs(url: str, max_jobs=10):
         results = []
 
         while True:
-    
 
             await page.wait_for_selector(
                     'mat-expansion-panel.search-result-item a.job-title-link, a.read-more-button',
@@ -381,13 +100,9 @@ async def scrape_mcdean_jobs(url: str, max_jobs=10):
 
 
             for i in range(count):
-                #if max_jobs is not None and len(results) >= max_jobs:
-                #    break
-
+                
                 try:
                     job_card = jobs.nth(i)
-                    #href = await jobs.nth(i).locator('a[data-ph-at-id="job-link"]').get_attribute("href")
-                    #href = await jobs.nth(i).get_attribute("href")
                     href = await job_card.locator("a.job-title-link").get_attribute("href")
 
                     if not href:
@@ -401,16 +116,12 @@ async def scrape_mcdean_jobs(url: str, max_jobs=10):
 
                     detail_html = await detail_page.content()
                     
-                    #description = await detail_page.inner_html("body")
-
                     match = salary_pattern.search(detail_html)
                     salary = match.group(0) if match else "NA"
 
                 
                     result = extract_description(detail_html)
                     results.append(result)
-
-                    #job_data = result.get("content", {})#json.loads(result)
 
                     parsed_result = safe_parse_json(result)
                     job_data = normalize_job_data(parsed_result)
@@ -432,16 +143,18 @@ async def scrape_mcdean_jobs(url: str, max_jobs=10):
 
                         job_data["salary"] = salary
                         job_data["job_url"] = str(job_url)
-                        job_data["company"] = "medstar"
-                        job_data["is_remote"]  = False
+                        job_data["company"] = jobsite
+                        job_data["company_id"] = company_id
+                        #job_data["is_remote"]  = False
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
                         with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
                             all_fieldnames = [
-                                "job_title", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "company", "education_needed", "is_remote",
+                                "job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date",
+                                "job_url", "education_needed", "is_remote", "ended_at",
                                 "last_scanned_at", "description"
                             ]
+
                             
                             writer = csv.DictWriter(f, fieldnames= all_fieldnames)#fieldnames=["job_title", "job_id", "location", "salary", "posted_date", "description"])
                             writer.writerow(job_data)
@@ -458,13 +171,8 @@ async def scrape_mcdean_jobs(url: str, max_jobs=10):
                     if len(results) >= max_jobs:
                         break
                 except Exception as e:
-                    print("Init error ////////////////////////////////////////////////////")
-                    print("before normalizacion result")
-                    print(result)
-                    print('..........')
-                    print(job_data)
                     print("Error:", e)
-                    print("End error ////////////////////////////////////////////////////")
+                    print(job_data)
                     continue
                 
                 finally:
@@ -490,21 +198,19 @@ async def scrape_mcdean_jobs(url: str, max_jobs=10):
                 print("Error finding next page button:", e)
                 break
 
-
-
         await browser.close()
         return results
     
 
 
-async def scrape_capitalone_jobs(url: str, max_jobs=10):
+async def scrape_capitalone_jobs(url: str,jobsite = "capitalone", company_id="", state=None,  max_jobs=10):
     async with async_playwright() as p:
         
-        csv_filename = "jobs_capitalone_mvdc.csv"
+        csv_filename = f"jobs_{jobsite.lower()}_mvdc.csv"
 
         if not os.path.exists(csv_filename):
             with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "job_id", "city", "state", "salary", "posted_date", "job_url", "company", "education_needed", "is_remote", "last_scanned_at", "description_summary"])
+                writer = csv.DictWriter(f, fieldnames=["job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date", "job_url",  "education_needed", "is_remote", "ended_at", "last_scanned_at", "description_summary"])
                 writer.writeheader()
 
 
@@ -545,11 +251,7 @@ async def scrape_capitalone_jobs(url: str, max_jobs=10):
                     href = await card.locator("a").get_attribute("href")
                     date = await card.locator(".job-date-posted").inner_text()
 
-                    #dates = await jobs.nth(i).locator("h2.posting-date").inner_text()
-    
-                    #clean_date = date.replace("Posted", "").strip()
-                    #date_obj = datetime.strptime(clean_date, "%B %d, %Y")
-                    formatted_date = date#date_obj.strftime("%Y-%m-%d")
+                    formatted_date = date
                     
                     if not href:
                         continue
@@ -563,8 +265,6 @@ async def scrape_capitalone_jobs(url: str, max_jobs=10):
                     detail_html = await detail_page.content()
 
                     result = extract_description(detail_html)
-                    results.append(result)
-
                     results.append(result)
 
                     parsed_result = safe_parse_json(result)
@@ -584,23 +284,24 @@ async def scrape_capitalone_jobs(url: str, max_jobs=10):
                         except FileNotFoundError:
                             existing_ids = set()
 
-                    if (str(job_url) not in existing_urls):#(str(job_data["job_id"]) not in existing_ids) or :
+                    if (str(job_url) not in existing_urls):
                         
                         job_data["posted_date"] = formatted_date
                         job_data["job_url"] = str(job_url)
-                        job_data["company"] = "Capital One"
-                        job_data["is_remote"]  = False
+                        job_data["company"] = jobsite
+                        job_data["company_id"] = company_id
+
+                        #job_data["is_remote"]  = False
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
                         with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
                             all_fieldnames = [
-                                "job_title", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "company", "education_needed", "is_remote",
+                                "job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date",
+                                "job_url", "education_needed", "is_remote", "ended_at",
                                 "last_scanned_at", "description"
                             ]
-                            #job_title", "job_id", "location", "salary", "posted_date", "job_url", "company", "education_needed", "is_remote", "last_scanned_at", "description_summary"])
-                
-                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)#fieldnames=["job_title", "job_id", "location", "salary", "posted_date", "description"])
+                            
+                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)
                             writer.writerow(job_data)
                             print(f"\nSaving job #{len(results) + 1}")
                             print(job_data)
@@ -614,12 +315,9 @@ async def scrape_capitalone_jobs(url: str, max_jobs=10):
                     if len(results) >= max_jobs:
                         break
                 except Exception as e:
-                    print("Init error ////////////////////////////////////////////////////")
-                    print(result)
-                    print('..........')
+                    print("Error job reading:", e)
                     print(job_data)
-                    print("Error:", e)
-                    print("End error ////////////////////////////////////////////////////")
+                    
                     continue
                     
                 finally:
@@ -686,14 +384,15 @@ async def scrape_capitalone_jobs(url: str, max_jobs=10):
     
 
 
-async def scrape_northrop_grumman_jobs(url: str, max_jobs=10):
+async def scrape_northrop_grumman_jobs(url: str, jobsite = "northrop_grumman", company_id="", state=None, max_jobs=10):
+
     async with async_playwright() as p:
         
-        csv_filename = "jobs_northrop_grumman_mvdc.csv"
-
+        csv_filename = "jobs_"+jobsite+"_mvdc.csv"
+        
         if not os.path.exists(csv_filename):
             with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "job_id", "city", "state", "salary", "posted_date", "job_url", "company", "education_needed", "is_remote", "last_scanned_at", "description_summary"])
+                writer = csv.DictWriter(f, fieldnames=["job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date", "job_url",  "education_needed", "is_remote", "ended_at", "last_scanned_at", "description_summary"])
                 writer.writeheader()
 
 
@@ -727,7 +426,6 @@ async def scrape_northrop_grumman_jobs(url: str, max_jobs=10):
             
             
             for i in range(min(max_jobs - len(results), count)): # just in case for max _jobs is defined
-            #for i in range(min(limit - len(results), count)):
                 print("Processing job =========== ")
                 print(f"\nProcessing job after try #{len(results) + 1}")
                 
@@ -735,39 +433,24 @@ async def scrape_northrop_grumman_jobs(url: str, max_jobs=10):
                     
                     card = jobs.nth(i)
 
-                    print(card)
-
-                    job_id_text = await page.locator(".position-full-card .position-id-text").inner_text()
-
-                    print("job_id_text is ", job_id_text)
-
-                
                     await card.click()
                     await page.wait_for_timeout(1500)  
-
                     await page.wait_for_selector("div.position-container div.position-full-card")
-    
                     container = await page.query_selector("div.position-container")
-                    
                     await page.wait_for_selector("div.position-job-description")
 
                     job_id_el = await container.query_selector("p.position-id-text")
                     job_id = await job_id_el.inner_text() if job_id_el else None
                     print("Job ID:", job_id)                
 
-                    
                     job_url = page.url
                     print("Job URL:", job_url)
 
                     container_html = await container.inner_html() # if container else None
-                    
-                    print(container_html)
-
                     result = extract_description(container_html)
                     results.append(result)
 
                     parsed_result = safe_parse_json(result)
-                    
                     job_data = normalize_job_data(parsed_result)
                     
                     if job_data is None:
@@ -783,16 +466,14 @@ async def scrape_northrop_grumman_jobs(url: str, max_jobs=10):
 
                     if str(job_data["job_id"]) not in existing_ids:
                         
-                        #job_data["job_title"] = job_title
                         job_data["job_url"] = str(job_url)
-                        job_data["company"] = "Northrop Grumman"
-                        job_data["is_remote"]  = False
+                        job_data["company"] = jobsite
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
                         with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
                             all_fieldnames = [
-                                "job_title", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "company", "education_needed", "is_remote",
+                                "job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date",
+                                "job_url", "education_needed", "is_remote", "ended_at",
                                 "last_scanned_at", "description"
                             ]
                             
@@ -804,47 +485,30 @@ async def scrape_northrop_grumman_jobs(url: str, max_jobs=10):
                             
                     else:
                         print(f"Job {job_data['job_id']} already exists. ")
-
-                    #await detail_page.close()
     
-                    if len(results) >= max_jobs:
-                        break
                 except Exception as e:
                     print("Error:", e)
                     print(job_data)
                     continue
-                    
-                
-            if len(results) >= max_jobs:
-                break
 
-            try:
-                next_button = await page.query_selector('button[aria-label="Next page"]')
-                if next_button:
-                    print("Going to next page…")
-                    await next_button.click()
-                    await page.wait_for_timeout(3000)
-                else:
-                    print("No more pages.")
-                    break
-            except Exception as e:
-                print("Error finding next page button:", e)
-                break
-
-        await browser.close()
-        return results
+            await browser.close()
+            return results
 
 
-
-async def scrape_inova_aecom_jobs(url: str, jobsite = "aecom", state=None, max_jobs=10):
+async def scrape_jobs_load_more(url: str, jobsite = "aecom", company_id="", state=None, max_jobs=10):
     async with async_playwright() as p:
         
         csv_filename = "jobs_"+jobsite+"_mvdc.csv"
         date_formats = ["%m/%d/%Y", "%b %d, %Y", "%d-%b-%Y"]
 
+        salary_pattern = re.compile(
+            r"\$[\d,]+(?:\.\d+)?\s*(?:-|to)?\s*\$?[\d,]*(?:\.\d+)?(?:\s*(?:per\s*(?:hour|year)|/hour|/year))?",
+            re.IGNORECASE
+        )
+
         if not os.path.exists(csv_filename):
             with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "job_id", "city", "state", "salary", "posted_date", "job_url", "company", "education_needed", "is_remote", "last_scanned_at", "description_summary"])
+                writer = csv.DictWriter(f, fieldnames=["job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date", "job_url",  "education_needed", "is_remote", "ended_at", "last_scanned_at", "description_summary"])
                 writer.writeheader()
 
 
@@ -878,6 +542,9 @@ async def scrape_inova_aecom_jobs(url: str, jobsite = "aecom", state=None, max_j
                     print('read more here new tile button')
                     load_more = await page.query_selector("button#tile-more-results:has-text('More Search Results')")
 
+                if not load_more:
+                    load_more = await page.query_selector("text='Show More Positions'")
+               
 
                 print('the load_more is ',load_more )
                 if load_more:
@@ -901,6 +568,7 @@ async def scrape_inova_aecom_jobs(url: str, jobsite = "aecom", state=None, max_j
                 print("Error clicking 'Show More Results':", e)
                 break
 
+        
 
         results = []
 
@@ -908,26 +576,28 @@ async def scrape_inova_aecom_jobs(url: str, jobsite = "aecom", state=None, max_j
         print('reading job list...')
         while True:
 
-            #await page.wait_for_selector("ul.jobs-list__list, ul#jobs, div.views-infinite-scroll-content-wrapper")
-            #await page.wait_for_selector(
-            #        "ul.jobs-list__list, ul#jobs, div.views-infinite-scroll-content-wrapper, ul.jobs-grid__list"
-            #    )
             await page.wait_for_selector(
-                    "ul.jobs-list__list, ul#jobs, div.views-infinite-scroll-content-wrapper, ul.jobs-grid__list, ul#job-tile-list"
-                )
-
+                        "ul.jobs-list__list, "
+                        "ul#jobs, "
+                        "div.views-infinite-scroll-content-wrapper, "
+                        "ul.jobs-grid__list, "
+                        "ul#job-tile-list, "
+                        "div.position-card"
+                    )
+                                
             jobs = page.locator(
                                 "ul.jobs-list__list > li[data-qa='searchResultItem'], "
                                 "ul#jobs > li, "
                                 "div.views-infinite-scroll-content-wrapper > div.views-row, "
                                 "ul.jobs-grid__list > li[data-qa='searchResultItem'], "
-                                "ul#job-tile-list > li.job-tile"
-                                )
+                                "ul#job-tile-list > li.job-tile, "
+                                "div.position-card"
+                            )
 
             count = await jobs.count()
             print(f"Found {count} jobs on this page.")
             
-        
+            
             for i in range(min(max_jobs - len(results), count)): 
                 
                 print(f"\nProcessing job after try #{len(results) + 1}")
@@ -961,6 +631,11 @@ async def scrape_inova_aecom_jobs(url: str, jobsite = "aecom", state=None, max_j
                         job_url = urljoin(page.url, href)
 
                     print("Job url:", job_url)
+
+                    if company_id=="015": #northrop_grumman
+                        job_id_text = await page.locator(".position-full-card .position-id-text").inner_text()
+                        print("job_id_text is ", job_id_text)
+
 
                     detail_page = await browser.new_page()
                     await detail_page.goto(job_url)
@@ -1033,13 +708,14 @@ async def scrape_inova_aecom_jobs(url: str, jobsite = "aecom", state=None, max_j
                         #job_data["job_title"] = job_title
                         job_data["job_url"] = str(job_url)
                         job_data["company"] = jobsite
+                        job_data["company_id"] = company_id
                         #job_data["is_remote"]  = False
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
                         with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
                             all_fieldnames = [
-                                "job_title", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "company", "education_needed", "is_remote",
+                                "job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date",
+                                "job_url", "education_needed", "is_remote", "ended_at",
                                 "last_scanned_at", "description"
                             ]
                             
@@ -1072,163 +748,29 @@ async def scrape_inova_aecom_jobs(url: str, jobsite = "aecom", state=None, max_j
         return results
 
 
-async def scrape_jhons_hopkins_jobs(url: str, max_jobs=10):
-    async with async_playwright() as p:
-        
-        csv_filename = "jobs_jhons_hopkins_mvdc.csv"
-
-        if not os.path.exists(csv_filename):
-            with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "job_id", "city", "state", "salary", "posted_date", "job_url", "company", "education_needed", "is_remote", "last_scanned_at", "description_summary"])
-                writer.writeheader()
-
-
-        browser = await p.chromium.launch(headless=False)
-        page = await browser.new_page()
-        await page.goto(url)
-        await page.wait_for_selector("body")
-
-
-        while True:
-            try:
-                print("Clicking 'More Search Results'…")
-                load_more = await page.query_selector("button:has-text('More Search Results')")
-                if load_more:
-                    print("Clicking 'More Search Results'…")
-                    await load_more.click()
-                    await page.wait_for_timeout(2000)
-                else:
-                    print("No more results to load.")
-                    break
-            except Exception as e:
-                print("Error clicking 'More Search Results':", e)
-                break
-
-
-        results = []
-
-        while True:
-
-            #await page.wait_for_selector("ul#job-tile-list")
-            await page.wait_for_selector("ul#job-tile-list > li.job-tile")
-
-
-            jobs = page.locator("ul#job-tile-list > li.job-tile")
-
-            count = await jobs.count()
-            print(f"Found {count} jobs on this page.")
-            
-            
-            for i in range(min(max_jobs - len(results), count)): 
-            
-                print("Processing job =========== ")
-                print(f"\nProcessing job after try #{len(results) + 1}")
-                
-                try:
-
-                    card = jobs.nth(i)
-
-                    job_url = await card.get_attribute("data-url")
-                    print("Job URL is :", job_url)
-
-                    job_url = urljoin(page.url, job_url)
-                    print("Job URL:", job_url)
-
-                    date_text = await card.locator("div[id*='section-date-value']").first.inner_text()
-                    print("Posted date:", date_text)
-                    posted_date = datetime.strptime(date_text.strip(), "%b %d, %Y")
-                    print(posted_date.date())   
-
-                    detail_page = await browser.new_page()
-                    try:
-                        await detail_page.goto(job_url, timeout=60000, wait_until="domcontentloaded")
-                        await detail_page.wait_for_selector("body", timeout=30000) 
-                        detail_html = await detail_page.content()
-                    except TimeoutError:
-                        print(f"No se pudo cargar la página: {job_url}")
-                        detail_html = None  
-
-
-                    result = extract_description(detail_html)
-
-                    results.append(result)
-
-                    parsed_result = safe_parse_json(result)
-                    
-                    job_data = normalize_job_data(parsed_result)
-                    
-                    if job_data is None:
-                        print("Could not process job data correctly, skipping.")
-                        continue
-
-                    if os.path.exists(csv_filename):
-                        try:
-                            df = pd.read_csv(csv_filename)
-                            existing_ids = set(df["job_id"].dropna().astype(str))
-                            existing_urls = set(df["job_url"].dropna().astype(str))
-                        except FileNotFoundError:
-                            existing_ids = set()
-
-                    if (str(job_url) not in existing_urls): #str(job_data["job_id"]) not in existing_ids:
-                        
-                        job_data["job_url"] = str(job_url)
-                        job_data["company"] = "jhons_hopkins"
-                        job_data["posted_date"] = posted_date.date()
-
-                        job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                        
-                        with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
-                            all_fieldnames = [
-                                "job_title", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "company", "education_needed", "is_remote",
-                                "last_scanned_at", "description"
-                            ]
-                            
-                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)#fieldnames=["job_title", "job_id", "location", "salary", "posted_date", "description"])
-                            writer.writerow(job_data)
-                            print(f"\nSaving job #{len(results) + 1}")
-                            print(job_data)
-                            print("====================================================")
-                            
-                    else:
-                        print(f"Job {job_data['job_id']} already exists. ")
-
-                    #await detail_page.close()
-    
-                    if len(results) >= max_jobs:
-                        break
-                except Exception as e:
-                    print("Error:", e)
-                    print(result)
-                    continue
-                    
-                finally:
-                    if detail_page:
-                        await detail_page.close()
-
-            if len(results) >= max_jobs:
-                break
-
-        await browser.close()
-        return results
-
-
-async def scrape_jobs_list_pagination(url: str, jobsite = "", max_jobs=10):
+async def scrape_jobs_list_pagination(url: str, jobsite = "", company_id="", max_jobs=10):
 
     async with async_playwright() as p:
         
         
         csv_filename = f"jobs_{jobsite.lower()}_mvdc.csv"
 
+        salary_pattern = re.compile(
+            r"\$[\d,]+(?:\.\d+)?\s*(?:-|to)?\s*\$?[\d,]*(?:\.\d+)?(?:\s*(?:per\s*(?:hour|year)|/hour|/year))?",
+            re.IGNORECASE
+        )
+
+
         if not os.path.exists(csv_filename):
             with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "job_id", "city", "state", "salary", "posted_date", "job_url", "company", "education_needed", "is_remote", "last_scanned_at", "description_summary"])
+                writer = csv.DictWriter(f, fieldnames=["job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date", "job_url",  "education_needed", "is_remote", "ended_at", "last_scanned_at", "description_summary"])
                 writer.writeheader()
 
 
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
         await page.goto(url)
+        
         await page.wait_for_selector("body")
 
         results = []
@@ -1236,16 +778,34 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", max_jobs=10):
         while True:
             
             await page.wait_for_selector(
-            ".job-tile, .article--result, mat-expansion-panel.search-result-item, li.jobs-list-item, li.css-1q2dra3, div.job-item.job-item-posting"
-            )
+                                        ".job-tile, "
+                                        ".article--result, "
+                                        "mat-expansion-panel.search-result-item, "
+                                        "li.jobs-list-item, "
+                                        "li.css-1q2dra3, "
+                                        "div.job-item.job-item-posting, "
+                                        "ul[data-ph-at-id='jobs-list'] > li.jobs-list-item"
+                                    )
+                                                
+            jobs = page.locator(
+                                ".job-tile, "
+                                ".article--result, "
+                                "mat-expansion-panel.search-result-item, "
+                                "li.jobs-list-item, "
+                                "li.css-1q2dra3, "
+                                "div.job-item.job-item-posting, "
+                                "ul[data-ph-at-id='jobs-list'] > li.jobs-list-item"
+                            )
+                                        
 
-            jobs = page.locator(".job-tile, .article--result, mat-expansion-panel.search-result-item, li.jobs-list-item, li.css-1q2dra3, div.job-item.job-item-posting")
             count = await jobs.count()
             
             print(f"Found {count} jobs on this page.")
 
-
+            print('number of ', max_jobs,len(results), count, min(max_jobs - len(results), count))
+            
             for i in range(min(max_jobs - len(results), count)): 
+            #for i in range(count): 
                 
                 print(f"\nProcessing job after try #{len(results) + 1}")
 
@@ -1254,12 +814,17 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", max_jobs=10):
                     card = jobs.nth(i)
                     
                     link_el = card.locator(
-                        ".job-link, h3.article__header__text__title a.link, a.job-title-link, a[data-ph-at-id='job-link'], a[data-automation-id='jobTitle'], a.btn.primary_button_color"
+                        ".job-link, "
+                        "h3.article__header__text__title a.link, "
+                        "a.job-title-link, "
+                        "a[data-ph-at-id='job-link'], "
+                        "a[data-automation-id='jobTitle'], "
+                        "a.btn.primary_button_color, "
+                        "a[data-ph-at-id='job-link']"  
                     )
 
                     href = await link_el.first.get_attribute("href")
-                    
-                    
+
                     if href.startswith("http"):
                         job_url = href
                     else:
@@ -1270,6 +835,7 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", max_jobs=10):
 
                     clean_date = ""
                     formatted_date = None
+
 
                     try:
                         date_el = card.locator(".posting-date, span.list-item-posted, .job-postdate, dl dt:has-text('posted on') + dd")
@@ -1315,6 +881,7 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", max_jobs=10):
                     #await page.wait_for_load_state("networkidle")
                     await page.wait_for_timeout(1000)
 
+
                     
                     detail_html = ""
                     json_ld = await detail_page.locator('script[type="application/ld+json"]').all_text_contents()
@@ -1326,12 +893,11 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", max_jobs=10):
 
                     print('this is detail_html ', detail_html)
 
+
                     result = extract_description(detail_html)
-                    
                     results.append(result)
 
                     parsed_result = safe_parse_json(result)
-                    
                     job_data = normalize_job_data(parsed_result)
                     
                     if job_data is None:
@@ -1382,19 +948,24 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", max_jobs=10):
                         if not formatted_date == None:
                             job_data["posted_date"] = formatted_date
 
+                        if jobsite == "medstarhealth":
+                            match = salary_pattern.search(detail_html)
+                            salary = match.group(0) if match else "NA"
+                            job_data["salary"] = salary
+
                         job_data["job_url"] = str(job_url)
                         job_data["company"] = jobsite
-
+                        job_data["company_id"] = company_id
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
                         with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
                             all_fieldnames = [
-                                "job_title", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "company", "education_needed", "is_remote",
+                                "job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date",
+                                "job_url", "education_needed", "is_remote", "ended_at",
                                 "last_scanned_at", "description"
                             ]
-                            
-                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)#fieldnames=["job_title", "job_id", "location", "salary", "posted_date", "description"])
+   
+                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)
                             writer.writerow(job_data)
                             print(f"\nSaving job #{len(results) + 1}")
                             print(job_data)
@@ -1408,6 +979,7 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", max_jobs=10):
     
                     if len(results) >= max_jobs:
                         break
+
                 except Exception as e:
                     print("Error saving job_data ====== :", e)
                     print(job_data)
@@ -1417,24 +989,21 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", max_jobs=10):
                     if detail_page:
                         await detail_page.close()
 
-            if len(results) >= max_jobs:
-                break
-
-
             try:
                 
-                #next_button = await page.query_selector(
-                #'button[aria-label="Next page"], button[aria-label="Next Page of Job Search Results"], a.paginationNextLink, a.next-btn')
-
-                next_button = await page.query_selector(
-                            'button[aria-label="Next page"], '
-                            'button[aria-label="Next Page of Job Search Results"], '
-                            'a.paginationNextLink, '
-                            'a.next-btn, '
-                            'button[aria-label="next"], '
-                            'a.next_page'  
-                        )
-
+                if not jobsite=="medstarhealth":
+                    next_button = await page.query_selector(
+                                'button[aria-label="Next page"], '
+                                'button[aria-label="Next Page of Job Search Results"], '
+                                'a.paginationNextLink, '
+                                'a.next-btn, '
+                                'button[aria-label="next"], '
+                                'a.next_page'
+                            )
+                else:
+                    next_button = await page.query_selector("text=/load more|more jobs|next/i")
+                
+                
                 print('button ', next_button)     
 
                 if next_button:
@@ -1489,23 +1058,4 @@ async def scrape_pwcs(page, max_jobs):
 
     print(f"{len(jobs)} jobs extracted.")
 
-
     return ''
-
-async def scrape_dynamic_jobs(url: str, max_jobs=10):
-    parsed_url = urlparse(url).netloc
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
-        page = await browser.new_page()
-        await page.goto(url)
-        await page.wait_for_selector("body")
-
-        if "pwcs.edu" in parsed_url:
-            results = await scrape_pwcs(page, max_jobs)
-        else:
-            results = await scrape_amazon_jobs(page, max_jobs)
-            
-        await browser.close()
-        return results
-
