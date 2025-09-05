@@ -7,11 +7,12 @@ from urllib.parse import urljoin
 import csv
 import json
 import re
-from norm_data import normalize_job_data, safe_parse_json, parse_relative_date
+from norm_data import normalize_job_data, safe_parse_json, parse_relative_date, init_jobs_csv, save_job_to_csv
 from llm_model import extract_description
 import pandas as pd
 from datetime import datetime
 import jobnames 
+
 
 
 async def scrape_lcps(url: str, max_jobs=10):
@@ -62,20 +63,16 @@ async def scrape_lcps(url: str, max_jobs=10):
         return results
     
 
-async def scrape_mcdean_jobs(url: str, jobsite="mcdean", company_id=None, state=None, max_jobs=10):
+async def scrape_mcdean_jobs(url: str, jobsite=jobnames.MCDEAN, company_id=None, state=None, max_jobs=10):
     async with async_playwright() as p:
         
-        csv_filename = "jobs_"+jobsite+"_mvdc.csv"
+        
+        csv_filename = init_jobs_csv(jobsite)
         
         salary_pattern = re.compile(
             r"\$[\d,]+(?:\.\d+)?\s*(?:-|to)?\s*\$?[\d,]*(?:\.\d+)?(?:\s*(?:per\s*(?:hour|year)|/hour|/year))?",
             re.IGNORECASE
         )
-
-        if not os.path.exists(csv_filename):
-            with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date", "job_url",  "education_needed", "is_remote", "ended_at", "last_scanned_at", "description_summary"])
-                writer.writeheader()
 
         browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
@@ -144,23 +141,10 @@ async def scrape_mcdean_jobs(url: str, jobsite="mcdean", company_id=None, state=
                         job_data["job_url"] = str(job_url)
                         job_data["company"] = jobsite
                         job_data["company_id"] = company_id
-                        #job_data["is_remote"]  = False
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
-                        with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
-                            all_fieldnames = [
-                                "job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "education_needed", "is_remote", "ended_at",
-                                "last_scanned_at", "description"
-                            ]
-
-                            
-                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)#fieldnames=["job_title", "job_id", "location", "salary", "posted_date", "description"])
-                            writer.writerow(job_data)
-                            
-                            print(f"\nSaving job #{len(results) + 1}")
-                            print(job_data)
-                            print("====================================================")
+                        save_job_to_csv(csv_filename, job_data)
+                        print(f"\nSaving job #{len(results) + 1}")
                             
                     else:
                         print(f"Job {job_data['job_id']} already exists. ")
@@ -201,17 +185,11 @@ async def scrape_mcdean_jobs(url: str, jobsite="mcdean", company_id=None, state=
         return results
     
 
-async def scrape_capitalone_jobs(url: str,jobsite = "capitalone", company_id=None, state=None,  max_jobs=10):
+async def scrape_capitalone_jobs(url: str,jobsite = jobnames.CAPITALONE, company_id=None, state=None,  max_jobs=10):
     async with async_playwright() as p:
         
-        csv_filename = f"jobs_{jobsite.lower()}_mvdc.csv"
-
-        if not os.path.exists(csv_filename):
-            with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date", "job_url",  "education_needed", "is_remote", "ended_at", "last_scanned_at", "description_summary"])
-                writer.writeheader()
-
-
+        csv_filename = init_jobs_csv(jobsite)
+        
         browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
         await page.goto(url)
@@ -288,22 +266,10 @@ async def scrape_capitalone_jobs(url: str,jobsite = "capitalone", company_id=Non
                         job_data["job_url"] = str(job_url)
                         job_data["company"] = jobsite
                         job_data["company_id"] = company_id
-
-                        #job_data["is_remote"]  = False
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
-                        with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
-                            all_fieldnames = [
-                                "job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "education_needed", "is_remote", "ended_at",
-                                "last_scanned_at", "description"
-                            ]
-                            
-                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)
-                            writer.writerow(job_data)
-                            print(f"\nSaving job #{len(results) + 1}")
-                            print(job_data)
-                            print("====================================================")
+                        save_job_to_csv(csv_filename, job_data)
+                        print(f"\nSaving job #{len(results) + 1}")
                             
                     else:
                         print(f"Job {job_data['job_id']} already exists. ", "this is url ", job_url)
@@ -381,19 +347,13 @@ async def scrape_capitalone_jobs(url: str,jobsite = "capitalone", company_id=Non
         return results
     
 
-async def scrape_northrop_grumman_jobs(url: str, jobsite = "northrop_grumman", company_id=None, state=None, max_jobs=10):
+async def scrape_northrop_grumman_jobs(url: str, jobsite = jobnames.NG, company_id=None, state=None, max_jobs=10):
 
     async with async_playwright() as p:
         
         print('init ---- scrape_northrop_grumman_jobs method --- ')
 
-        csv_filename = "jobs_"+jobsite+"_mvdc.csv"
-        
-        if not os.path.exists(csv_filename):
-            with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date", "job_url",  "education_needed", "is_remote", "ended_at", "last_scanned_at", "description_summary"])
-                writer.writeheader()
-
+        csv_filename = init_jobs_csv(jobsite)
 
         browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
@@ -469,18 +429,8 @@ async def scrape_northrop_grumman_jobs(url: str, jobsite = "northrop_grumman", c
                         job_data["company"] = jobsite
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
-                        with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
-                            all_fieldnames = [
-                                "job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "education_needed", "is_remote", "ended_at",
-                                "last_scanned_at", "description"
-                            ]
-                            
-                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)#fieldnames=["job_title", "job_id", "location", "salary", "posted_date", "description"])
-                            writer.writerow(job_data)
-                            print(f"\nSaving job #{len(results) + 1}")
-                            print(job_data)
-                            print("====================================================")
+                        save_job_to_csv(csv_filename, job_data)
+                        print(f"\nSaving job #{len(results) + 1}")
                             
                     else:
                         print(f"Job {job_data['job_id']} already exists. ")
@@ -497,19 +447,14 @@ async def scrape_northrop_grumman_jobs(url: str, jobsite = "northrop_grumman", c
 async def scrape_jobs_load_more(url: str, jobsite = None, company_id=None, state=None, max_jobs=10):
     async with async_playwright() as p:
         
-        csv_filename = "jobs_"+jobsite+"_mvdc.csv"
+        csv_filename = init_jobs_csv(jobsite)
+
         date_formats = ["%m/%d/%Y", "%b %d, %Y", "%d-%b-%Y"]
 
         salary_pattern = re.compile(
             r"\$[\d,]+(?:\.\d+)?\s*(?:-|to)?\s*\$?[\d,]*(?:\.\d+)?(?:\s*(?:per\s*(?:hour|year)|/hour|/year))?",
             re.IGNORECASE
         )
-
-        if not os.path.exists(csv_filename):
-            with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date", "job_url",  "education_needed", "is_remote", "ended_at", "last_scanned_at", "description_summary"])
-                writer.writeheader()
-
 
         browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
@@ -631,7 +576,7 @@ async def scrape_jobs_load_more(url: str, jobsite = None, company_id=None, state
 
                     print("Job url:", job_url)
 
-                    if company_id=="015": #northrop_grumman
+                    if company_id==jobnames.NG:
                         job_id_text = await page.locator(".position-full-card .position-id-text").inner_text()
                         print("job_id_text is ", job_id_text)
 
@@ -644,11 +589,8 @@ async def scrape_jobs_load_more(url: str, jobsite = None, company_id=None, state
                     detail_html = await detail_page.content()
 
                     result = extract_description(detail_html)
-
                     results.append(result)
-
                     parsed_result = safe_parse_json(result)
-                    
                     job_data = normalize_job_data(parsed_result)
                     
                     if job_data is None:
@@ -662,7 +604,6 @@ async def scrape_jobs_load_more(url: str, jobsite = None, company_id=None, state
                             existing_urls = set(df["job_url"].dropna().astype(str))
                         except FileNotFoundError:
                             existing_ids = set()
-
 
                     if not state == None and (not jobsite == jobnames.UNDERARMOUR):
 
@@ -678,7 +619,6 @@ async def scrape_jobs_load_more(url: str, jobsite = None, company_id=None, state
 
                     formatted_date = None
 
-                    
                     if clean_date:
                         for fmt in date_formats:
                             try:
@@ -703,32 +643,18 @@ async def scrape_jobs_load_more(url: str, jobsite = None, company_id=None, state
                         if not formatted_date == None:
                             job_data["posted_date"] = formatted_date
 
-                        #job_data["job_title"] = job_title
                         job_data["job_url"] = str(job_url)
                         job_data["company"] = jobsite
                         job_data["company_id"] = company_id
-                        #job_data["is_remote"]  = False
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
-                        with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
-                            all_fieldnames = [
-                                "job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "education_needed", "is_remote", "ended_at",
-                                "last_scanned_at", "description"
-                            ]
-                            
-                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)#fieldnames=["job_title", "job_id", "location", "salary", "posted_date", "description"])
-                            writer.writerow(job_data)
-                            print(f"\nSaving job #{len(results) + 1}")
-                            print(job_data)
-                            print("====================================================")
+                        save_job_to_csv(csv_filename, job_data)
+                        print(f"\nSaving job #{len(results) + 1}")
                             
                     else:
                         print(f"Job {job_data['job_id']} already exists. ")
 
                     
-                    if len(results) >= max_jobs:
-                        break
                 except Exception as e:
                     print("Error for saving :", e)
                     print(job_data)
@@ -737,9 +663,6 @@ async def scrape_jobs_load_more(url: str, jobsite = None, company_id=None, state
                 finally:
                     if detail_page:
                         await detail_page.close()
-
-            #if len(results) >= max_jobs:
-            #    break
 
             await browser.close()
             return results
@@ -750,19 +673,12 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", company_id="", max
     async with async_playwright() as p:
         
         
-        csv_filename = f"jobs_{jobsite.lower()}_mvdc.csv"
-
+        csv_filename = init_jobs_csv(jobsite)
+        
         salary_pattern = re.compile(
             r"\$[\d,]+(?:\.\d+)?\s*(?:-|to)?\s*\$?[\d,]*(?:\.\d+)?(?:\s*(?:per\s*(?:hour|year)|/hour|/year))?",
             re.IGNORECASE
         )
-
-
-        if not os.path.exists(csv_filename):
-            with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=["job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date", "job_url",  "education_needed", "is_remote", "ended_at", "last_scanned_at", "description_summary"])
-                writer.writeheader()
-
 
         browser = await p.chromium.launch(headless=False)
         page = await browser.new_page()
@@ -888,12 +804,9 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", company_id="", max
                     else:
                         detail_html = await detail_page.content()
 
-                    print('this is detail_html ', detail_html)
-
-
+                    
                     result = extract_description(detail_html)
                     results.append(result)
-
                     parsed_result = safe_parse_json(result)
                     job_data = normalize_job_data(parsed_result)
                     
@@ -930,7 +843,7 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", company_id="", max
 
 
                     jobexist = False
-                    print('before saving ========= ')
+                    
                     if False:#not str(job_data["job_id"]) == 'NA':
                         if str(job_data["job_id"]) not in existing_ids:
                             print('before saving ========= job_id ', str(job_data["job_id"]))
@@ -955,21 +868,10 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", company_id="", max
                         job_data["company_id"] = company_id
                         job_data["last_scanned_at"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                         
-                        with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
-                            all_fieldnames = [
-                                "job_title", "company", "company_id", "job_id", "city", "state", "salary", "posted_date",
-                                "job_url", "education_needed", "is_remote", "ended_at",
-                                "last_scanned_at", "description"
-                            ]
-   
-                            writer = csv.DictWriter(f, fieldnames= all_fieldnames)
-                            writer.writerow(job_data)
-                            print(f"\nSaving job #{len(results) + 1}")
-                            print(job_data)
-                            print("====================================================")
+                        save_job_to_csv(csv_filename, job_data)
+                        print(f"\nSaving job #{len(results) + 1}")
                         
                     else:
-
                         print(f"Job {job_data['job_id']} already exists. ")
 
                     await detail_page.close()
@@ -1001,8 +903,6 @@ async def scrape_jobs_list_pagination(url: str, jobsite = "", company_id="", max
                     next_button = await page.query_selector("text=/load more|more jobs|next/i")
                 
                 
-                print('button ', next_button)     
-
                 if next_button:
                     tag = await next_button.get_property("tagName")
                     if (await tag.json_value()).lower() == "a":

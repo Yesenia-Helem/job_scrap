@@ -2,6 +2,40 @@ import csv
 import json
 import re
 from datetime import datetime, timedelta
+import os
+
+def init_jobs_csv(jobsite: str) -> str:
+
+    csv_filename = f"jobs_{jobsite}_mvdc.csv"
+
+    if not os.path.exists(csv_filename):
+        with open(csv_filename, mode='w', newline='', encoding='utf-8') as f:
+            fieldnames = [
+                "job_title", "company", "company_id", "job_id", "city", "state",
+                "salary", "posted_date", "job_url", "education_needed",
+                "is_remote", "ended_at", "last_scanned_at", "description_summary"
+            ]
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+
+    return csv_filename
+
+
+def save_job_to_csv(csv_filename: str, job_data: dict):
+    
+    fieldnames = [
+        "job_title", "company", "company_id", "job_id", "city", "state",
+        "salary", "posted_date", "job_url", "education_needed",
+        "is_remote", "ended_at", "last_scanned_at", "description"
+    ]
+
+    with open(csv_filename, mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writerow(job_data)
+
+    print(job_data)
+    print("====================================================")
+
 
 def normalize_job_data(result):
     """
