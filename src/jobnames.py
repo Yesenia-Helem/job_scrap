@@ -87,7 +87,7 @@ JOBSNAMES = [
     {"company_id": "017",
      "company_code": "underarmour",
      "company_name": "Underarmour",
-    }
+    },
      {"company_id": "018",
      "company_code": "deloitte",
      "company_name": "Deloitte",
