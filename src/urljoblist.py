@@ -126,4 +126,12 @@ JOBS = [
          "Virginia": "https://careers.underarmour.com/search/?searchby=location&createNewAlert=false&q=&locationsearch=virginia&geolocation="
         }
      },
+     {"company_id": "018", 
+     "company": "deloitte", 
+     "scrape_method":"scrape_jobs_list_pagination", 
+     "urls": {
+         "default": "https://apply.deloitte.com/en_US/careers/SearchJobs/?9336=%5B690365%2C690395%2C690353%5D&9336_format=5912&listFilterMode=1&jobRecordsPerPage=10&sort=relevancy"
+        }
+     },
+
 ] 
